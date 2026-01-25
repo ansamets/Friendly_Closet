@@ -12,6 +12,19 @@ export async function loginOrCreate(username: string): Promise<User> {
   if (!res.ok) throw new Error("Login failed");
   return res.json();
 }
+export async function loginWithPassword(username: string, password: string): Promise<User> {
+  const res = await fetch(`${API_URL}/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json();
+    throw new Error(errData.detail || "Login failed");
+  }
+  return res.json();
+}
 
 // --- ITEMS (Feed) ---
 export async function getFeed(): Promise<Item[]> {
