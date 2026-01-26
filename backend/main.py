@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import shutil
 import os
+import io
 from datetime import datetime
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -15,6 +16,8 @@ import schemas
 import elo
 from PIL import Image, ImageOps
 from geopy.geocoders import Nominatim
+import cloudinary
+import cloudinary.uploader
 
 # Initialize Geocoder
 geolocator = Nominatim(user_agent="wardrobe_app_v1")
@@ -24,6 +27,19 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Wardrobe API")
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+cloudinary_configured = all([
+    os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    os.environ.get("CLOUDINARY_API_KEY"),
+    os.environ.get("CLOUDINARY_API_SECRET"),
+])
+if cloudinary_configured:
+    cloudinary.config(
+        cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.environ.get("CLOUDINARY_API_KEY"),
+        api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+        secure=True,
+    )
 
 # Setup CORS for localhost frontend
 app.add_middleware(
@@ -287,12 +303,25 @@ def create_item(
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
 
-    os.makedirs("uploads", exist_ok=True)
     base = os.path.splitext(os.path.basename(image.filename))[0]
     safe = "".join(c for c in base if c.isalnum() or c in ("-", "_"))[:40]
     filename = f"{safe}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
-    file_location = os.path.join("uploads", filename)
-    img.save(file_location, "JPEG", quality=80)
+
+    if cloudinary_configured:
+        buffer = io.BytesIO()
+        img.save(buffer, "JPEG", quality=80)
+        buffer.seek(0)
+        upload = cloudinary.uploader.upload(
+            buffer,
+            folder="friendly-closet",
+            public_id=os.path.splitext(filename)[0],
+            resource_type="image",
+        )
+        file_location = upload.get("secure_url")
+    else:
+        os.makedirs("uploads", exist_ok=True)
+        file_location = os.path.join("uploads", filename)
+        img.save(file_location, "JPEG", quality=80)
 
     # 3. COORDINATE LOGIC (Updated)
     final_lat = latitude
