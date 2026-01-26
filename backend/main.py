@@ -29,7 +29,7 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -256,17 +256,17 @@ def create_item(
 
     # Fallback: If frontend didn't send coords but sent text, try server-side geocoding
     # Fallback: If frontend didn't send coords but sent text, try server-side geocoding
-    if (final_lat is None or final_lon is None) and location_text:
-        try:
-            query = f"{clean_name} {location_text}"
-            loc = geolocator.geocode(query)
+    # if (final_lat is None or final_lon is None) and location_text:
+    #     try:
+    #         query = f"{clean_name} {location_text}"
+    #         loc = geolocator.geocode(query)
 
-            if loc is not None:
-                final_lat = loc.latitude
-                final_lon = loc.longitude
+    #         if loc is not None:
+    #             final_lat = loc.latitude
+    #             final_lon = loc.longitude
 
-        except Exception as e:
-            print("Server-side geocoding failed:", e)
+    #     except Exception as e:
+    #         print("Server-side geocoding failed:", e)
 
 
     # 4. Save Item
