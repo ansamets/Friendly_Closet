@@ -7,4 +7,3 @@ passlib[bcrypt]
 argon2-cffi
 geopy
 pillow
-react-icons
