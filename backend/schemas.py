@@ -60,6 +60,13 @@ class FollowRequest(BaseModel):
     follower_username: str
     target_username: str
 
+class FollowRequestOut(BaseModel):
+    id: int
+    requester_username: str
+    target_username: str
+    status: str
+    created_at: datetime
+
 class CompareRequest(BaseModel):
     user_id: int
     winner_store_id: int

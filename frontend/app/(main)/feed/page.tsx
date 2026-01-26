@@ -47,7 +47,7 @@ export default function FeedPage() {
         {items.map((item) => (
           <div key={item.id} className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-50">
 
-            <div className="relative aspect-[4/5] w-full bg-pastel-gray">
+            <div className="relative aspect-square w-full bg-pastel-gray">
               <Image
                 src={getImageUrl(item.image_path)}
                 alt="Clothing item"

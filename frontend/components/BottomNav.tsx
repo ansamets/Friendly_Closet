@@ -1,61 +1,97 @@
 "use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PlusSquare, Users, Newspaper } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+// Make sure you ran: npm install react-icons
+import {
+  HiOutlineUserAdd,
+  HiPlusCircle,
+  HiOutlineGlobe,
+  HiUserGroup,
+} from "react-icons/hi";
 
 export default function BottomNav() {
   const pathname = usePathname();
-
-  const HangerIcon = ({ size = 24, className = "" }) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      width={size}
-      height={size}
-      className={className}
-    >
-      <path d="M12 3a3 3 0 0 0-2.83 2H5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-4.17A3 3 0 0 0 12 3z"/>
-      <path d="m12 9 0 12" />
-    </svg>
-  );
+  const { user } = useAuth();
 
   const navItems = [
-    { href: "/home", label: "Rankings", icon: HangerIcon },
-    { href: "/feed", label: "Feed", icon: Newspaper },
-    { href: "/add", label: "Add", icon: PlusSquare },
-    { href: "/friends", label: "Friends", icon: Users },
+    { href: "/friends", label: "Add", icon: HiOutlineUserAdd },
+    { href: "/feed", label: "Feed", icon: HiUserGroup },
+    { href: "/add", label: "Add", icon: HiPlusCircle, isCenter: true },
+    // Note: You need to create a /map page for this to work, otherwise it 404s
+    { href: "/home", label: "Map", icon: HiOutlineGlobe },
+    { href: "/stats", label: "Me", icon: HiUserGroup },
   ];
 
   return (
-    // Changed "absolute bottom-0" to just be part of the flex column (safer)
-    <nav className="w-full bg-white border-t border-gray-100 h-20 flex items-center justify-center z-50">
+    <nav
+      className="
+        w-full z-50
+        bg-white/90 backdrop-blur-xl
+        border-t border-stone-200
+        pb-safe
+      "
+    >
+      <div className="mx-auto max-w-md px-4">
+        <div className="grid grid-cols-5 items-center gap-2 py-4">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            const Icon = item.icon;
 
-      {/* Container to spread icons evenly */}
-      <div className="w-full md:w-2/3 flex justify-around items-center px-6">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
+            // Center “Add” button (raised)
+            if (item.isCenter) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center justify-center relative -top-5"
+                >
+                  <div
+                    className="
+                      flex h-14 w-14 items-center justify-center rounded-full
+                      bg-stone-900 text-white shadow-xl
+                      ring-4 ring-white
+                      active:scale-95 transition-transform
+                    "
+                    aria-label={item.label}
+                  >
+                  <Icon className="h-8 w-8" />
+                  </div>
+                </Link>
+              );
+            }
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-200 ${
-                isActive
-                  ? "text-blue-600 bg-blue-50" // Standard Blue (Safe)
-                  : "text-gray-400 hover:bg-gray-50" // Standard Gray (Safe)
-              }`}
-            >
-              <Icon size={24} />
-              {isActive && <span className="text-[10px] font-bold mt-1">{item.label}</span>}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="
+                  flex flex-col items-center justify-center
+                  rounded-2xl py-1
+                  transition
+                  active:scale-95
+                "
+              >
+                <div
+                  className={`
+                    flex h-8 w-8 items-center justify-center rounded-xl transition-colors
+                    ${isActive ? "text-stone-900" : "text-stone-400 group-hover:text-stone-600"}
+                  `}
+                >
+                  <Icon className="h-7 w-7" />
+                </div>
+                <span
+                  className={`mt-1 text-xs font-semibold ${
+                    isActive ? "text-stone-900" : "text-stone-400"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

@@ -1,4 +1,4 @@
-import { User, Item, StoreRanking } from "./types";
+import { User, Item, StoreRanking, FollowRequest } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -65,8 +65,46 @@ export async function followUser(follower: string, target: string) {
   return res.json();
 }
 
+export async function unfollowUser(follower: string, target: string) {
+  const res = await fetch(`${API_URL}/unfollow`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ follower_username: follower, target_username: target }),
+  });
+  if (!res.ok) throw new Error("Failed to unfollow");
+  return res.json();
+}
+
+export async function getFollowRequests(username: string): Promise<FollowRequest[]> {
+  const res = await fetch(`${API_URL}/follow_requests?username=${encodeURIComponent(username)}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function acceptFollowRequest(requestId: number, username: string) {
+  const res = await fetch(`${API_URL}/follow_requests/${requestId}/accept?username=${encodeURIComponent(username)}`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to accept request");
+  return res.json();
+}
+
+export async function rejectFollowRequest(requestId: number, username: string) {
+  const res = await fetch(`${API_URL}/follow_requests/${requestId}/reject?username=${encodeURIComponent(username)}`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to reject request");
+  return res.json();
+}
+
 export async function getFollowing(username: string): Promise<User[]> {
   const res = await fetch(`${API_URL}/users/${username}/following`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getFollowers(username: string): Promise<User[]> {
+  const res = await fetch(`${API_URL}/users/${username}/followers`);
   if (!res.ok) return [];
   return res.json();
 }
@@ -75,6 +113,20 @@ export async function getFollowing(username: string): Promise<User[]> {
 export async function getRankings(userId: number): Promise<StoreRanking[]> {
   const res = await fetch(`${API_URL}/store_rankings?user_id=${userId}`);
   if (!res.ok) return [];
+  return res.json();
+}
+
+export async function compareStores(userId: number, winnerStoreId: number, loserStoreId: number) {
+  const res = await fetch(`${API_URL}/compare_store`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: userId,
+      winner_store_id: winnerStoreId,
+      loser_store_id: loserStoreId,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to compare stores");
   return res.json();
 }
 

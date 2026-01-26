@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User } from "@/lib/types";
 
 interface AuthContextType {
@@ -14,8 +14,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (userData: User) => setUser(userData);
-  const logout = () => setUser(null);
+  useEffect(() => {
+    const stored = localStorage.getItem("fc_user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem("fc_user");
+      }
+    }
+  }, []);
+
+  const login = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem("fc_user", JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("fc_user");
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>

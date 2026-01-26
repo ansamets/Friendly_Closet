@@ -73,12 +73,103 @@ def follow_user(req: schemas.FollowRequest, db: Session = Depends(get_db)):
     if not follower or not target:
         raise HTTPException(status_code=404, detail="User not found")
 
+    if follower.id == target.id:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself")
+
     if target in follower.following:
         return {"message": f"Already following {target.username}"}
 
-    follower.following.append(target)
+    existing = (
+        db.query(models.FollowRequest)
+        .filter(
+            models.FollowRequest.requester_id == follower.id,
+            models.FollowRequest.target_id == target.id,
+            models.FollowRequest.status == "pending",
+        )
+        .first()
+    )
+    if existing:
+        return {"message": "Follow request already sent"}
+
+    request = models.FollowRequest(requester_id=follower.id, target_id=target.id, status="pending")
+    db.add(request)
     db.commit()
-    return {"message": f"{follower.username} followed {target.username}"}
+    return {"message": f"Follow request sent to {target.username}"}
+
+@app.post("/unfollow")
+def unfollow_user(req: schemas.FollowRequest, db: Session = Depends(get_db)):
+    follower = db.query(models.User).filter(models.User.username == req.follower_username).first()
+    target = db.query(models.User).filter(models.User.username == req.target_username).first()
+
+    if not follower or not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target not in follower.following:
+        return {"message": f"Not following {target.username}"}
+
+    follower.following.remove(target)
+    db.commit()
+    return {"message": f"Unfollowed {target.username}"}
+
+@app.get("/follow_requests", response_model=List[schemas.FollowRequestOut])
+def get_follow_requests(username: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    requests = (
+        db.query(models.FollowRequest)
+        .filter(
+            models.FollowRequest.target_id == user.id,
+            models.FollowRequest.status == "pending",
+        )
+        .order_by(models.FollowRequest.created_at.desc())
+        .all()
+    )
+
+    return [
+        schemas.FollowRequestOut(
+            id=r.id,
+            requester_username=r.requester.username,
+            target_username=r.target.username,
+            status=r.status,
+            created_at=r.created_at,
+        )
+        for r in requests
+    ]
+
+@app.post("/follow_requests/{request_id}/accept")
+def accept_follow_request(request_id: int, username: str, db: Session = Depends(get_db)):
+    req = db.query(models.FollowRequest).filter(models.FollowRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if req.target.username != username:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if req.status != "pending":
+        return {"message": "Request already handled"}
+
+    req.requester.following.append(req.target)
+    req.status = "accepted"
+    db.commit()
+    return {"message": "Follow request accepted"}
+
+@app.post("/follow_requests/{request_id}/reject")
+def reject_follow_request(request_id: int, username: str, db: Session = Depends(get_db)):
+    req = db.query(models.FollowRequest).filter(models.FollowRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if req.target.username != username:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if req.status != "pending":
+        return {"message": "Request already handled"}
+
+    req.status = "rejected"
+    db.commit()
+    return {"message": "Follow request rejected"}
 
 @app.get("/users/{username}/following", response_model=List[schemas.UserOut])
 def get_following(username: str, db: Session = Depends(get_db)):

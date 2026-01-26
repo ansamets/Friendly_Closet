@@ -38,6 +38,19 @@ class User(Base):
         backref="followers"
     )
 
+    outgoing_requests = relationship(
+        "FollowRequest",
+        foreign_keys="FollowRequest.requester_id",
+        back_populates="requester",
+        cascade="all, delete-orphan"
+    )
+    incoming_requests = relationship(
+        "FollowRequest",
+        foreign_keys="FollowRequest.target_id",
+        back_populates="target",
+        cascade="all, delete-orphan"
+    )
+
 class Store(Base):
     __tablename__ = "stores"
     id = Column(Integer, primary_key=True, index=True)
@@ -77,3 +90,14 @@ class Item(Base):
 
     owner = relationship("User", back_populates="items")
     store = relationship("Store", back_populates="items")
+
+class FollowRequest(Base):
+    __tablename__ = "follow_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    requester_id = Column(Integer, ForeignKey("users.id"))
+    target_id = Column(Integer, ForeignKey("users.id"))
+    status = Column(String, default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    requester = relationship("User", foreign_keys=[requester_id], back_populates="outgoing_requests")
+    target = relationship("User", foreign_keys=[target_id], back_populates="incoming_requests")
