@@ -138,6 +138,33 @@ def get_follow_requests(username: str, db: Session = Depends(get_db)):
         for r in requests
     ]
 
+@app.get("/follow_requests/sent", response_model=List[schemas.FollowRequestOut])
+def get_sent_follow_requests(username: str, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    requests = (
+        db.query(models.FollowRequest)
+        .filter(
+            models.FollowRequest.requester_id == user.id,
+            models.FollowRequest.status == "pending",
+        )
+        .order_by(models.FollowRequest.created_at.desc())
+        .all()
+    )
+
+    return [
+        schemas.FollowRequestOut(
+            id=r.id,
+            requester_username=r.requester.username,
+            target_username=r.target.username,
+            status=r.status,
+            created_at=r.created_at,
+        )
+        for r in requests
+    ]
+
 @app.post("/follow_requests/{request_id}/accept")
 def accept_follow_request(request_id: int, username: str, db: Session = Depends(get_db)):
     req = db.query(models.FollowRequest).filter(models.FollowRequest.id == request_id).first()
@@ -170,6 +197,22 @@ def reject_follow_request(request_id: int, username: str, db: Session = Depends(
     req.status = "rejected"
     db.commit()
     return {"message": "Follow request rejected"}
+
+@app.post("/follow_requests/{request_id}/cancel")
+def cancel_follow_request(request_id: int, username: str, db: Session = Depends(get_db)):
+    req = db.query(models.FollowRequest).filter(models.FollowRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if req.requester.username != username:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if req.status != "pending":
+        return {"message": "Request already handled"}
+
+    req.status = "cancelled"
+    db.commit()
+    return {"message": "Follow request cancelled"}
 
 @app.get("/users/{username}/following", response_model=List[schemas.UserOut])
 def get_following(username: str, db: Session = Depends(get_db)):

@@ -81,6 +81,12 @@ export async function getFollowRequests(username: string): Promise<FollowRequest
   return res.json();
 }
 
+export async function getSentFollowRequests(username: string): Promise<FollowRequest[]> {
+  const res = await fetch(`${API_URL}/follow_requests/sent?username=${encodeURIComponent(username)}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function acceptFollowRequest(requestId: number, username: string) {
   const res = await fetch(`${API_URL}/follow_requests/${requestId}/accept?username=${encodeURIComponent(username)}`, {
     method: "POST",
@@ -94,6 +100,14 @@ export async function rejectFollowRequest(requestId: number, username: string) {
     method: "POST",
   });
   if (!res.ok) throw new Error("Failed to reject request");
+  return res.json();
+}
+
+export async function cancelFollowRequest(requestId: number, username: string) {
+  const res = await fetch(`${API_URL}/follow_requests/${requestId}/cancel?username=${encodeURIComponent(username)}`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to cancel request");
   return res.json();
 }
 

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { acceptFollowRequest, followUser, getFollowRequests, getFollowers, getFollowing, rejectFollowRequest, unfollowUser } from "@/lib/api";
+import { acceptFollowRequest, cancelFollowRequest, followUser, getFollowRequests, getFollowers, getFollowing, getSentFollowRequests, rejectFollowRequest, unfollowUser } from "@/lib/api";
 import { FollowRequest, User } from "@/lib/types";
 import Link from "next/link";
 
@@ -13,6 +13,7 @@ export default function FriendsPage() {
   const [following, setFollowing] = useState<User[]>([]);
   const [followers, setFollowers] = useState<User[]>([]);
   const [requests, setRequests] = useState<FollowRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<FollowRequest[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -22,6 +23,7 @@ export default function FriendsPage() {
       loadFollowing();
       loadFollowers();
       loadRequests();
+      loadSentRequests();
     }
   }, [user]);
 
@@ -43,6 +45,12 @@ export default function FriendsPage() {
     setRequests(data);
   };
 
+  const loadSentRequests = async () => {
+    if (!user) return;
+    const data = await getSentFollowRequests(user.username);
+    setSentRequests(data);
+  };
+
   const handleFollow = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !targetUsername) return;
@@ -59,6 +67,7 @@ export default function FriendsPage() {
       await followUser(user.username, targetUsername);
       setMessage(`Follow request sent to ${targetUsername}`);
       setTargetUsername("");
+      loadSentRequests();
     } catch (err) {
       setMessage("Could not send request (maybe they don't exist?)");
     } finally {
@@ -92,6 +101,12 @@ export default function FriendsPage() {
     if (!user) return;
     await rejectFollowRequest(requestId, user.username);
     setRequests((prev) => prev.filter((req) => req.id !== requestId));
+  };
+
+  const handleCancel = async (requestId: number) => {
+    if (!user) return;
+    await cancelFollowRequest(requestId, user.username);
+    setSentRequests((prev) => prev.filter((req) => req.id !== requestId));
   };
 
   if (!user) {
@@ -199,6 +214,29 @@ export default function FriendsPage() {
                     Reject
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sent Requests */}
+      <div>
+        <h2 className="font-semibold mb-3">Sent Requests</h2>
+        {sentRequests.length === 0 ? (
+          <p className="text-gray-400 text-sm">No pending sent requests.</p>
+        ) : (
+          <div className="space-y-2">
+            {sentRequests.map((req) => (
+              <div key={req.id} className="bg-white p-3 rounded-xl border flex items-center justify-between">
+                <span className="font-medium">{req.target_username}</span>
+                <button
+                  type="button"
+                  onClick={() => handleCancel(req.id)}
+                  className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-xs font-semibold"
+                >
+                  Cancel
+                </button>
               </div>
             ))}
           </div>
