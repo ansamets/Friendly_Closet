@@ -1,10 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.exc import IntegrityError
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
-import shutil
 import os
 import io
 from datetime import datetime
@@ -33,13 +32,17 @@ cloudinary_configured = all([
     os.environ.get("CLOUDINARY_API_KEY"),
     os.environ.get("CLOUDINARY_API_SECRET"),
 ])
-if cloudinary_configured:
-    cloudinary.config(
-        cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-        api_key=os.environ.get("CLOUDINARY_API_KEY"),
-        api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
-        secure=True,
+if not cloudinary_configured:
+    raise RuntimeError(
+        "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, "
+        "CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET."
     )
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
 
 # Setup CORS for localhost frontend
 app.add_middleware(
@@ -50,8 +53,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -284,7 +285,11 @@ def create_item(
 ):
     # 1. Handle Store
     clean_name = store_name.strip()
-    existing_store = db.query(models.Store).filter(models.Store.name == clean_name).first()
+    existing_store = (
+        db.query(models.Store)
+        .filter(func.lower(models.Store.name) == clean_name.lower())
+        .first()
+    )
 
     if existing_store:
         store_id = existing_store.id
@@ -307,21 +312,16 @@ def create_item(
     safe = "".join(c for c in base if c.isalnum() or c in ("-", "_"))[:40]
     filename = f"{safe}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
 
-    if cloudinary_configured:
-        buffer = io.BytesIO()
-        img.save(buffer, "JPEG", quality=80)
-        buffer.seek(0)
-        upload = cloudinary.uploader.upload(
-            buffer,
-            folder="friendly-closet",
-            public_id=os.path.splitext(filename)[0],
-            resource_type="image",
-        )
-        file_location = upload.get("secure_url")
-    else:
-        os.makedirs("uploads", exist_ok=True)
-        file_location = os.path.join("uploads", filename)
-        img.save(file_location, "JPEG", quality=80)
+    buffer = io.BytesIO()
+    img.save(buffer, "JPEG", quality=80)
+    buffer.seek(0)
+    upload = cloudinary.uploader.upload(
+        buffer,
+        folder="friendly-closet",
+        public_id=os.path.splitext(filename)[0],
+        resource_type="image",
+    )
+    file_location = upload.get("secure_url")
 
     # 3. COORDINATE LOGIC (Updated)
     final_lat = latitude

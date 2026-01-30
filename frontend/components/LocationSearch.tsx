@@ -10,8 +10,8 @@ interface LocationResult {
 }
 
 interface Props {
-  onSelect: (location: string, lat: number, lng: number) => void;
-  storeName?: string; // Optional: helps us search for "Zara" if location is blank
+  onSelect: (location: string, lat: number | null, lng: number | null) => void;
+  storeName?: string;
 }
 
 export default function LocationSearch({ onSelect, storeName }: Props) {
@@ -24,23 +24,33 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
 
   // SEARCH FUNCTION
   const performSearch = async (searchTerm: string, userLat?: number, userLng?: number) => {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length < 3 && !userLat && !userLng) return;
+
     setLoading(true);
     try {
-      let url = `/api/geocode?q=${encodeURIComponent(searchTerm)}`;
+      // UPDATED: Now points to the new location-service route
+      let url = "/location-service";
+      const params = new URLSearchParams();
 
-      // If we have GPS coords, append them to bias results
-      const lat = userLat ?? userCoords?.lat;
-      const lng = userLng ?? userCoords?.lng;
-      if (lat && lng) {
-        url += `&lat=${lat}&lon=${lng}`;
+      if (trimmed.length > 0) {
+        params.append("q", trimmed);
       }
 
-      const res = await fetch(url);
+      const lat = userLat ?? userCoords?.lat;
+      const lng = userLng ?? userCoords?.lng;
+
+      if (lat && lng) {
+        params.append("lat", lat.toString());
+        params.append("lon", lng.toString());
+      }
+
+      const res = await fetch(`${url}?${params.toString()}`);
       const data = await res.json();
       setResults(data.results || []);
       setIsOpen(true);
     } catch (e) {
-      console.error(e);
+      console.error("Search failed:", e);
     } finally {
       setLoading(false);
     }
@@ -54,31 +64,46 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        setUserCoords({ lat: latitude, lng: longitude });
+        const newCoords = { lat: latitude, lng: longitude };
+        setUserCoords(newCoords);
 
-        // If user already typed a query, re-run it with location bias
         if (query.trim().length >= 3) {
-          performSearch(query, latitude, longitude);
+          await performSearch(query, latitude, longitude);
+        }
+        else {
+          try {
+            // UPDATED: Now points to the new location-service route
+            const res = await fetch(`/location-service?lat=${latitude}&lon=${longitude}`);
+            const data = await res.json();
+            const first = data?.results?.[0];
+            if (first?.name) {
+              setQuery(first.name);
+              onSelect(first.name, latitude, longitude);
+            } else {
+              onSelect("Current Location", latitude, longitude);
+            }
+          } catch (e) {
+            console.error(e);
+          }
         }
         setLoading(false);
       },
       (err) => {
         alert("Could not get location. Please type manually.");
         setLoading(false);
-      }
+      },
+      { enableHighAccuracy: true }
     );
   };
 
-  // Debounce Search for typing
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.length < 3) return;
-      performSearch(query);
+      performSearch(query, userCoords?.lat, userCoords?.lng);
     }, 500);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, userCoords]);
 
-  // Click Outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -99,15 +124,14 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
           value={query}
           onChange={e => {
             setQuery(e.target.value);
-            // Reset coords if user starts typing manually
-            onSelect(e.target.value, 0, 0);
+            if (userCoords) setUserCoords(null);
+            onSelect(e.target.value, null, null);
           }}
         />
 
-        {/* LOADER */}
         {loading && (
           <div className="absolute right-2 top-2">
-            <Loader2 className="w-5 h-5 m-1.5 animate-spin text-muted" />
+            <Loader2 className="w-5 h-5 m-1.5 animate-spin text-stone-400" />
           </div>
         )}
       </div>
@@ -115,28 +139,27 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
       <button
         type="button"
         onClick={handleUseCurrentLocation}
-        className="mt-2 text-xs text-stone-500 hover:text-stone-700 underline underline-offset-4"
+        className={`mt-2 text-xs underline underline-offset-4 transition-colors ${
+          userCoords ? "text-blue-600 font-medium" : "text-stone-500 hover:text-stone-700"
+        }`}
       >
-        Use my location for better results
+        {userCoords ? "✓ Using your location" : "Use my location for better results"}
       </button>
 
-      {/* DROPDOWN RESULTS */}
       {isOpen && results.length > 0 && (
-        <ul className="relative w-full mt-2 bg-transparent rounded-xl border border-stone-200 max-h-60 overflow-y-auto">
+        <ul className="absolute z-50 w-full mt-2 bg-white rounded-xl border border-stone-200 shadow-lg max-h-60 overflow-y-auto">
           {results.map((item, idx) => (
             <li
               key={idx}
               onClick={() => {
-                setQuery(item.label);
+                setQuery(item.name);
                 setIsOpen(false);
                 onSelect(item.label, item.lat, item.lng);
               }}
-              className="p-3 hover:bg-stone-50/70 cursor-pointer border-b border-stone-100 last:border-0 flex items-start gap-2"
+              className="p-3 hover:bg-stone-50 cursor-pointer border-b border-stone-100 last:border-0 flex flex-col"
             >
-              <div>
-                <p className="text-sm font-medium text-primary">{item.name}</p>
-                <p className="text-[10px] text-muted leading-tight">{item.label}</p>
-              </div>
+              <p className="text-sm font-medium text-stone-900">{item.name}</p>
+              <p className="text-[10px] text-stone-500 truncate">{item.label}</p>
             </li>
           ))}
         </ul>
