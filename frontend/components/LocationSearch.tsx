@@ -29,7 +29,7 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
 
     setLoading(true);
     try {
-      // UPDATED: Now points to the new location-service route
+      // Points to the custom Next.js route to bypass the /api rewrite
       let url = "/location-service";
       const params = new URLSearchParams();
 
@@ -72,7 +72,6 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
         }
         else {
           try {
-            // UPDATED: Now points to the new location-service route
             const res = await fetch(`/location-service?lat=${latitude}&lon=${longitude}`);
             const data = await res.json();
             const first = data?.results?.[0];
@@ -96,6 +95,7 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
     );
   };
 
+  // Debounce typing
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.length < 3) return;
@@ -104,6 +104,7 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
     return () => clearTimeout(timer);
   }, [query, userCoords]);
 
+  // Click Outside logic
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -120,7 +121,8 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
         <input
           type="text"
           placeholder={storeName ? `Find ${storeName} location...` : "Search City or Address..."}
-          className="w-full pr-10 p-3 bg-stone-50 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 transition-all border border-transparent focus:border-stone-200"
+          // Solid background, mint border, brand text
+          className="w-full pr-10 p-3 bg-white rounded-2xl outline-none border border-pastel-mint focus:ring-4 focus:ring-pastel-mint/50 focus:border-brand-primary transition-all text-brand-text placeholder:text-stone-400"
           value={query}
           onChange={e => {
             setQuery(e.target.value);
@@ -131,7 +133,7 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
 
         {loading && (
           <div className="absolute right-2 top-2">
-            <Loader2 className="w-5 h-5 m-1.5 animate-spin text-stone-400" />
+            <Loader2 className="w-5 h-5 m-1.5 animate-spin text-brand-primary" />
           </div>
         )}
       </div>
@@ -140,14 +142,19 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
         type="button"
         onClick={handleUseCurrentLocation}
         className={`mt-2 text-xs underline underline-offset-4 transition-colors ${
-          userCoords ? "text-blue-600 font-medium" : "text-stone-500 hover:text-stone-700"
+          userCoords ? "text-brand-primary font-bold" : "text-brand-text/60 hover:text-brand-text"
         }`}
       >
         {userCoords ? "✓ Using your location" : "Use my location for better results"}
       </button>
 
+      {/* DROPDOWN RESULTS */}
+      {/* Changed bg-white/95 to solid bg-white */}
       {isOpen && results.length > 0 && (
-        <ul className="absolute z-50 w-full mt-2 bg-white rounded-xl border border-stone-200 shadow-lg max-h-60 overflow-y-auto">
+        <ul
+          className="absolute z-50 w-full mt-2 rounded-2xl border border-pastel-mint shadow-xl shadow-brand-text/10 max-h-60 overflow-y-auto"
+          style={{ backgroundColor: "#ffffff" }}
+        >
           {results.map((item, idx) => (
             <li
               key={idx}
@@ -156,10 +163,12 @@ export default function LocationSearch({ onSelect, storeName }: Props) {
                 setIsOpen(false);
                 onSelect(item.label, item.lat, item.lng);
               }}
-              className="p-3 hover:bg-stone-50 cursor-pointer border-b border-stone-100 last:border-0 flex flex-col"
+              // Clean transitions and mint highlights
+              className="p-3 hover:bg-pastel-mint/30 cursor-pointer border-b border-pastel-mint/20 last:border-0 flex flex-col transition-colors"
+              style={{ backgroundColor: "#ffffff" }}
             >
-              <p className="text-sm font-medium text-stone-900">{item.name}</p>
-              <p className="text-[10px] text-stone-500 truncate">{item.label}</p>
+              <p className="text-sm font-semibold text-brand-text">{item.name}</p>
+              <p className="text-[10px] text-brand-text/60 truncate">{item.label}</p>
             </li>
           ))}
         </ul>

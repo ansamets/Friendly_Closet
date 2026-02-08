@@ -29,8 +29,28 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export const metadata: Metadata = {
+  title: "Friendly Closet",
+  description: "Organize your wardrobe with Gemini AI",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Friendly Closet",
+  },
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
